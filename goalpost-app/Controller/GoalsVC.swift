@@ -15,12 +15,32 @@ class GoalsVC: UIViewController {
 
     @IBOutlet weak var tableView: UITableView!
     
+    var goals: [Goal] = []
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.dataSource = self
         tableView.delegate = self
         tableView.isHidden = false
         // Do any additional setup after loading the view, typically from a nib.
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        fetchCoreDataObject()
+        tableView.reloadData()
+    }
+    
+    func fetchCoreDataObject(){
+        self.fetch { (complet) in
+            if complet {
+                if goals.count >= 1 {
+                    tableView.isHidden = false
+                } else {
+                    tableView.isHidden = true
+                }
+            }
+        }
     }
 
     @IBAction func addGoalBtnWasPressed(_ sender: Any) {
@@ -36,14 +56,86 @@ extension GoalsVC: UITableViewDelegate, UITableViewDataSource{
         return 1
     }
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return 3
+        return goals.count
     }
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard let cell = tableView.dequeueReusableCell(withIdentifier: "goalCell") as? GoalCell else {
             return GoalCell()
         }
-        cell.configureCell(description: "Eat salad twice a weak.", type: .shortTerm, goalProgressAmount: 2)
+        let goal = goals[indexPath.row]
+        cell.configureCell(goal: goal)
         return cell
+    }
+    func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        return true
+    }
+    func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCellEditingStyle {
+        return .none
+    }
+    func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
+        let deleteAction = UITableViewRowAction(style: .destructive, title: "DELETE") { (rowAction, indexPath) in
+            self.removeGoal(atIndexPath: indexPath)
+            self.fetchCoreDataObject()
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+        }
+        let addAction = UITableViewRowAction(style: .normal, title: "ADD 1") { (rowAction, indexPath) in
+            self.setProgress(atIndexPath: indexPath)
+            tableView.reloadRows(at: [indexPath], with: .automatic)
+        }
+        
+        deleteAction.backgroundColor = #colorLiteral(red: 1, green: 0.1491314173, blue: 0, alpha: 1)
+        addAction.backgroundColor = #colorLiteral(red: 0.9607843161, green: 0.7058823705, blue: 0.200000003, alpha: 1)
+        
+        return [deleteAction, addAction]
+    }
+}
+
+extension GoalsVC {
+    func fetch(completion: (_ complete: Bool) -> ()){
+        guard let managedContext = appDelegate?.persistentContainer.viewContext else { return }
+        
+        let fetchRequest = NSFetchRequest<Goal>(entityName: "Goal")
+        
+        do{
+            goals = try managedContext.fetch(fetchRequest) 
+            print("Sucessfully fitch data!")
+            completion(true)
+        } catch {
+            debugPrint("Can't fitch \(error.localizedDescription)")
+            completion(false)
+        }
+    }
+    
+    func removeGoal(atIndexPath indexPath: IndexPath){
+        guard let managedContext = appDelegate?.persistentContainer.viewContext else { return }
+        
+        managedContext.delete(goals[indexPath.row])
+        
+        do{
+            try managedContext.save()
+            print("Sucessfully remove goal!")
+        } catch {
+            debugPrint("Couldn't remove: \(error.localizedDescription)")
+        }
+    }
+    
+    func setProgress(atIndexPath indexPath: IndexPath){
+        guard let managedContext = appDelegate?.persistentContainer.viewContext else { return }
+
+        let chosenGoal = goals[indexPath.row]
+        
+        if chosenGoal.goalProgress < chosenGoal.goalCompletionValue{
+            chosenGoal.goalProgress += 1
+        } else {
+            return
+        }
+        
+        do{
+            try managedContext.save()
+            print("Sucessfully set progress!")
+        } catch {
+            debugPrint("Couldn't set progress: \(error.localizedDescription)")
+        }
     }
 }
 

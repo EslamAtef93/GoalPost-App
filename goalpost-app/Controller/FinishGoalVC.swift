@@ -48,7 +48,7 @@ class FinishGoalVC: UIViewController, UITextFieldDelegate {
         guard let managedContext = appDelegate?.persistentContainer.viewContext else { return }
         let goal = Goal(context: managedContext)
         
-        goal.goalDescription = description
+        goal.goalDescription = goalDescription
         goal.goalType = goalType.rawValue
         goal.goalCompletionValue = Int32(pointsTextField.text!)!
         goal.goalProgress = Int32(0)
